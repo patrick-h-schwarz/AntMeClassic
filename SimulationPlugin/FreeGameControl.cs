@@ -388,27 +388,5 @@ namespace AntMe.Plugin.Simulation
             }
         }
 
-        internal void DirectStart(string filename)
-        {
-            PlayerStore.Instance.RegisterFile(filename);
-
-            var players = PlayerStore.Instance.KnownPlayer.Where(p => p.File.ToLower().Equals(filename.ToLower()));
-            if (players.Count() > 1)
-            {
-                throw new Exception("Mehr als einen Spieler gefunden");
-            }
-            else if (players.Count() == 0)
-            {
-                throw new Exception("Leider kein Spieler gefunden");
-            }
-            else
-            {
-                var player = players.First();
-                setup.Slot1.PlayerInfo = player;
-                setup.Slot1.Filename = player.File;
-                setup.Slot1.Typename = player.ClassName;
-                UpdateControls();
-            }
-        }
     }
 }

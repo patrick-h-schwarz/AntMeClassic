@@ -19,12 +19,23 @@ namespace AntMe.Plugin.Simulation
         private FreeGameSetup setup;
         private Simulator sim;
         private bool paused;
-
+        private bool gui;
         public FreeGamePlugin()
         {
+            this.gui = true;
             setup = new FreeGameSetup();
             control = new FreeGameControl();
             control.SetSetup(setup);
+        }
+        public FreeGamePlugin(bool gui)
+        {
+            this.gui = gui;
+            setup = new FreeGameSetup();
+            if (this.gui)
+            {
+                control = new FreeGameControl();
+                control.SetSetup(setup);
+            }
         }
 
         public Guid Guid { get { return Guid.Parse("{77257ACF-6E73-48DF-B3A4-B469E34BFC35}"); } }
@@ -48,31 +59,37 @@ namespace AntMe.Plugin.Simulation
                     if (setup.Slot6.PlayerInfo != null) count++;
                     if (setup.Slot7.PlayerInfo != null) count++;
                     if (setup.Slot8.PlayerInfo != null) count++;
-                    if (control.InvokeRequired)
+                    if (this.gui)
                     {
-                        control.BeginInvoke((MethodInvoker)delegate
+                        if (control.InvokeRequired)
+                        {
+                            control.BeginInvoke((MethodInvoker)delegate
+                            {
+                                control.Enabled = true;
+                            });
+                        }
+                        else
                         {
                             control.Enabled = true;
-                        });
-                    }
-                    else
-                    {
-                        control.Enabled = true;
+                        }
                     }
                     return count > 0 ? PluginState.Ready : PluginState.NotReady;
                 }
                 else
                 {
-                    if (control.InvokeRequired)
+                    if (this.gui)
                     {
-                        control.BeginInvoke((MethodInvoker)delegate
+                        if (control.InvokeRequired)
+                        {
+                            control.BeginInvoke((MethodInvoker)delegate
+                            {
+                                control.Enabled = false;
+                            });
+                        }
+                        else
                         {
                             control.Enabled = false;
-                        });
-                    }
-                    else
-                    {
-                        control.Enabled = false;
+                        }
                     }
                     return paused ? PluginState.Paused : PluginState.Running;
                 }
@@ -112,7 +129,8 @@ namespace AntMe.Plugin.Simulation
                     DiscoverPlayerInfo(setup.Slot8);
 
                     // In das Form bringen
-                    control.SetSetup(setup);
+                    if (this.gui)
+                        control.SetSetup(setup);
                 }
             }
         }
@@ -163,7 +181,9 @@ namespace AntMe.Plugin.Simulation
                 }
 
                 sim = new Simulator(config);
-                control.Enabled = false;
+
+                if (this.gui)
+                    control.Enabled = false;
             }
 
             if (State == PluginState.Paused)
@@ -178,7 +198,9 @@ namespace AntMe.Plugin.Simulation
             {
                 sim.Unload();
                 sim = null;
-                control.Enabled = true;
+
+                if (this.gui)
+                    control.Enabled = true;
             }
         }
 
@@ -189,12 +211,44 @@ namespace AntMe.Plugin.Simulation
 
         public void StartupParameter(string[] parameter)
         {
+            int slotIndex = 1;
             foreach (string param in parameter)
             {
                 if (param.ToUpper().StartsWith("/FILE"))
                 {
-                    control.DirectStart(param.Substring(6).Trim());
+                    var filename = param.Substring(6).Trim();
+                    var abs_filename = Path.GetFullPath(filename);
+                    PlayerStore.Instance.RegisterFile(abs_filename);
+
+                    var players = PlayerStore.Instance.KnownPlayer.Where(p => p.File.ToLower().Equals(abs_filename.ToLower()));
+                    if (players.Count() > 1)
+                    {
+                        throw new Exception("Mehr als einen Spieler gefunden");
+                    }
+                    else if (players.Count() == 0)
+                    {
+                        throw new Exception("Leider kein Spieler gefunden");
+                    }
+                    else
+                    {
+                        var player = players.First();
+                        FreeGameSlot slot = (FreeGameSlot)setup.GetType().GetProperty("Slot" + slotIndex).GetValue(setup);
+                        slot.PlayerInfo = player;
+                        slot.Filename = player.File;
+                        slot.Typename = player.ClassName;
+                        if (this.gui)
+                            control.SetSetup(setup);
+                        slotIndex++;
+                    }
                 }
+                else if (param.ToUpper().StartsWith("/FOLDER"))
+                {
+                    var path = param.Substring(8).Trim();
+                    foreach (String filename in Directory.GetFiles(path, "*.dll", SearchOption.TopDirectoryOnly))
+                        PlayerStore.Instance.RegisterFile(Path.GetFullPath(filename));
+                }
+                if (slotIndex == 9)
+                    break;
             }
         }
 
