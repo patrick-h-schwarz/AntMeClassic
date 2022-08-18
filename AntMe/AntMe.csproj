@@ -13,6 +13,7 @@
     <Product>AntMe!</Product>
     <Company>AntMe! GmbH</Company>
     <Copyright>Copyright © 2022 AntMe! GmbH</Copyright>
+    <StartupObject>AntMe.Gui.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
@@ -43,6 +44,7 @@
   <ItemGroup>
     <ProjectReference Include="..\PlayerManagement\PlayerManagement.csproj" />
     <ProjectReference Include="..\SharedComponents\SharedComponents.csproj" />
+    <ProjectReference Include="..\SimulationPlugin\SimulationPlugin.csproj" />
   </ItemGroup>
 
   <ItemGroup>
